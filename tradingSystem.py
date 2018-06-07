@@ -4,6 +4,7 @@ import os
 
 class trading_strategy:
     def __init__(self,initial_cash):
+        self.start = initial_cash
         self.shares = 0
         self.current_market_value = 0
         self.cash = initial_cash
@@ -51,15 +52,16 @@ class trading_strategy:
 
 
 class trend_following_strategy(trading_strategy):
-    def new_day(self,new_price,scale=0.01):
+    def new_day(self,new_price,scale=0.029,days=3):
         self.history_price = np.append(self.history_price,new_price)
         self.update_price(new_price)
-        if (new_price >= self.history_price.min()*(1+scale)) and (self.history_price[-1] >= self.history_price.min()*(1+scale)):
+        #if (new_price >= self.history_price.min()*(1+scale)) and (self.history_price[-1] >= self.history_price.min()*(1+scale)):
+        if len(self.history_price[-days:][self.history_price[-days:] > self.history_price.min() * (1 + scale)]) == 3:
             self.empty_history_price()
-            self.adjust_positions_to(int(self.balance()*0.7/new_price))
-        elif (new_price <= self.history_price.max()*(1-scale)) and (self.history_price[-1] <= self.history_price.max()*(1-scale)):
+            self.adjust_positions_to(int(self.start*0.7/new_price))
+        elif len(self.history_price[-days:][self.history_price[-days:] < self.history_price.max() * (1 - scale)] == 3):
             self.empty_history_price()
-            self.adjust_positions_to(int(-self.balance()*0.5/new_price))
+            self.adjust_positions_to(int(-self.start*0.7/new_price))
         return self.balance()
         
             
@@ -69,15 +71,18 @@ class mean_reverse_strategy(trading_strategy):
 
 
 def run(data):    
-    trend = trend_following_strategy(10000)
+    trend = trend_following_strategy(100000)
     for index,row in data[::-1].iterrows():
         res = trend.new_day(row['price'])
-        if index%100 == 0:
+        if index%20 == 0:
             print(res)
+        
+        
+        
         
         
 if __name__ == '__main__':
     data = pd.read_csv(os.getcwd() + '\\goldData.csv')
-    run(data)
+    run(data[:])
     
     
