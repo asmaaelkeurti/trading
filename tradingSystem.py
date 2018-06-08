@@ -14,7 +14,7 @@ class trading_strategy:
         self.trailing_low = 0
         self.trailing_high = 0
         
-        self.history_price = np.array([])
+        self.prices = np.array([])
         self.history_balance = np.array([])
     
     def balance(self):
@@ -62,7 +62,8 @@ class trend_following_strategy(trading_strategy):
         self.dates = np.array([])
         self.positions = np.array([])
         self.is_trade = np.array([])
-    
+        self.history_price = np.array([])
+
     
     def new_day(self,new_price,new_date,scale=0.03,days=3,long_percent=0.9,short_percent=0.9):
         self.history_price = np.append(self.history_price,new_price)
@@ -75,11 +76,11 @@ class trend_following_strategy(trading_strategy):
             self.empty_history_price()
             self.adjust_positions_to(int(-self.start*short_percent/new_price))
         
-        self.run_stats(days,scale,long_percent,short_percent,new_date)
+        self.run_stats(days,scale,long_percent,short_percent,new_date,new_price)
         
         return self.balance()
         
-    def run_stats(self,days,scale,long_percent,short_percent,new_date):
+    def run_stats(self,days,scale,long_percent,short_percent,new_date,new_price):
         self.history_balance = np.append(self.history_balance,self.balance())
         self.days = np.append(self.days,days)
         self.scale = np.append(self.scale,scale)
@@ -87,6 +88,7 @@ class trend_following_strategy(trading_strategy):
         self.short_percent = np.append(self.short_percent,short_percent)
         self.dates = np.append(self.dates,new_date)
         self.positions = np.append(self.positions,self.shares)
+        self.prices = np.append(self.prices,new_price)
         if len(self.positions) >= 2:
             if self.positions[-1] == self.positions[-2]:
                 self.is_trade = np.append(self.is_trade,0)
@@ -115,31 +117,51 @@ class trend_following_strategy(trading_strategy):
                 len(self.history_balance),
                 biggest_drawdown,
                 biggest_gain,
-                self.is_trade.sum()]
+                self.is_trade.sum(),
+                self.history_balance[0],
+                self.history_balance[-1]]
         
-        
+    def save_stats(self):
+        df = pd.DataFrame(self.dates,columns=['dates'])
+        for i in [[self.prices,'prices'],
+                  [self.positions,'positions'],
+                  [self.is_trade,'is_trade'],
+                  [self.history_balance,'history_balance']]:
+            df = df.merge(pd.DataFrame(i[0],columns=[i[1]]),left_index=True,right_index=True)
+        return df
             
 
 class mean_reverse_strategy(trading_strategy):
     pass
 
 
-def one_iteration(data):  
+def one_iteration(data,scale=0.03,days=3,long_percent=0.9,short_percent=0.9):  
     """
         outbreak_days,long_percent, short_percent, scale, return start_date,end_date,duration,trading_times,biggest_drawdown,biggest_gain,start_balance,end_balance
     """
     trend = trend_following_strategy(100000)
     for index,row in data[::-1].iterrows():
-        res = trend.new_day(row['price'],row['date'],scale=0.03,days=3,long_percent=0.9,short_percent=0.0)
+        res = trend.new_day(row['price'],row['date'],scale,days,long_percent,short_percent)
         if index%20 == 0:
             print(res)
-                
     return trend
+       
+def run_window(data,duration=200):
+    starting_index = 0
+    ending_index = starting_index + duration
+    while ending_index <= len(data):
+        res = one_iteration(data[starting_index:ending_index])
         
-        
+        starting_index = starting_index + 10
+        ending_index = ending_index + 10
+        print(res.history_balance[-1])
+
+    
+ 
         
 if __name__ == '__main__':
     data = pd.read_csv(os.getcwd() + '\\goldData.csv')
     a = one_iteration(data[:])
+#    run_window(data)
     
     
