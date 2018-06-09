@@ -135,7 +135,7 @@ class mean_reverse_strategy(trading_strategy):
     pass
 
 
-def one_iteration(data,scale=0.03,days=3,long_percent=0.9,short_percent=0.9):  
+def one_iteration(data,scale=0.01,days=3,long_percent=0.8,short_percent=0.8):  
     """
         outbreak_days,long_percent, short_percent, scale, return start_date,end_date,duration,trading_times,biggest_drawdown,biggest_gain,start_balance,end_balance
     """
@@ -161,7 +161,10 @@ def run_window(data,duration=200):
         
 if __name__ == '__main__':
     data = pd.read_csv(os.getcwd() + '\\goldData.csv')
-    a = one_iteration(data[:])
+    a = one_iteration(data[:700])
+    
+    df = a.save_stats()
+    df.to_csv(os.getcwd() + '\one_iteration_stats.csv',index=False)
 #    run_window(data)
     
     
