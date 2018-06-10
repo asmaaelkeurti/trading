@@ -65,7 +65,7 @@ class trend_following_strategy(trading_strategy):
         self.history_price = np.array([])
 
     
-    def new_day(self,new_price,new_date,scale=0.03,days=3,long_percent=0.9,short_percent=0.9):
+    def new_day(self,new_price,new_date,scale,days,long_percent,short_percent):
         self.history_price = np.append(self.history_price,new_price)
         self.update_price(new_price)
         #if (new_price >= self.history_price.min()*(1+scale)) and (self.history_price[-1] >= self.history_price.min()*(1+scale)):
@@ -129,42 +129,51 @@ class trend_following_strategy(trading_strategy):
                   [self.history_balance,'history_balance']]:
             df = df.merge(pd.DataFrame(i[0],columns=[i[1]]),left_index=True,right_index=True)
         return df
-            
+    
 
+    
 class mean_reverse_strategy(trading_strategy):
     pass
 
 
-def one_iteration(data,scale=0.01,days=3,long_percent=0.8,short_percent=0.8):  
+def one_iteration(data,scale=0.03,days=3,long_percent=0.8,short_percent=0.8,is_print = False):  
     """
         outbreak_days,long_percent, short_percent, scale, return start_date,end_date,duration,trading_times,biggest_drawdown,biggest_gain,start_balance,end_balance
     """
     trend = trend_following_strategy(100000)
     for index,row in data[::-1].iterrows():
         res = trend.new_day(row['price'],row['date'],scale,days,long_percent,short_percent)
-        if index%20 == 0:
+        if (index%20 == 0) & is_print:
             print(res)
+            
+    df = trend.save_stats()
+    df.to_csv(os.getcwd() + '\\one_iteration_stats.csv',index=False)
+    
     return trend
        
-def run_window(data,duration=200):
-    starting_index = 0
-    ending_index = starting_index + duration
-    while ending_index <= len(data):
-        res = one_iteration(data[starting_index:ending_index])
+def run_window(data,duration=300):
+    df_list = []
+    for scale in [round(i,3) for i in np.arange(0.01,0.035,0.001)]:
+        starting_index = 0
+        ending_index = starting_index + duration
+    
+        while ending_index <= len(data):
+            res = one_iteration(data[starting_index:ending_index],scale = scale)
         
-        starting_index = starting_index + 10
-        ending_index = ending_index + 10
-        print(res.history_balance[-1])
-
+            starting_index = starting_index + 10
+            ending_index = ending_index + 10
+            print('%s %s %s' % (res.show_stats()[0], res.history_balance[-1],scale))
+            df_list.append([res.show_stats()[0], res.history_balance[-1],scale])
+    df = pd.DataFrame(df_list)
+    df.to_csv(os.getcwd() + '\\run_window_stats.csv',index=False)
+    return df 
     
  
         
 if __name__ == '__main__':
     data = pd.read_csv(os.getcwd() + '\\goldData.csv')
-    a = one_iteration(data[:700])
+    a = one_iteration(data[:])
     
-    df = a.save_stats()
-    df.to_csv(os.getcwd() + '\one_iteration_stats.csv',index=False)
-#    run_window(data)
+#    res = run_window(data)
     
     
